@@ -1,60 +1,47 @@
-opts= {}
-if ARGV[0] == "apiify:controller"
-  Rake.application.instance_variable_set(:@top_level_tasks, ["apiify:controller"])
-  opts[:model] = ARGV[1]
-  opts[:camel_name] = ARGV[1].camelize
-  opts[:routes] = ARGV[2].split('')
-
-  opts[:params] = []
-  opts[:safe_params] = []
-
-  ARGV[3] = ARGV[3] ? ARGV[3].split(',') : []
-
-  ARGV[3].each_with_index do |element, index|
-    if index.even?
-      opts[:params] << {name: element}
-
-      if element[0] == ':'
-        opts[:safe_params] << element
-      end
-    else
-      opts[:params].last[:type] = element
-    end
-  end
-
-  opts[:safe_params] = opts[:safe_params].join(',')
-end
-
-
 namespace :apiify do |args|
   desc "create a controller for api calls with routes, then check for a migration and a model"
   task :controller => :environment do
+    import_file = Rails.root.join('lib', 'test_apiify_import_file.rb')
 
 
-    filename   = opts[:model].pluralize.underscore + '_controller.rb'
-    path       = Rails.root.join('app', 'controllers', 'api', filename)
+  end
+
+  def create_api_controller(json_object)
+    filename   = json_object[:model].to_s.pluralize.underscore + '_controller.rb'
+    path       = Rails.root.join('app', 'controllers', 'api', 'vi', filename)
 
     unless File.exist?(path)
-      Dir.mkdir(Rails.root.join('app', 'controllers', 'api')) unless File.exists?(Rails.root.join('app', 'controllers', 'api'))
-      methods = ""
+      Dir.mkdir(Rails.root.join('app', 'controllers', 'api', 'vi')) unless File.exists?(Rails.root.join('app', 'controllers', 'api'))
+
+      safe_params = {}
+
+      if json_object[:controller][:api][:routes].present? && json_object[:controller][:api][:strong_params].present?
+        if json_object[:controller][:api][:strong_params].is_a?(Array)
+          safe_params = json_object[:controller][:api][:strong_params]
+        elsif json_object[:controller][:api][:strong_params] === :all
+          if json_object[:attrs].present?
+            safe_params = json_object[:attrs].keys
+          end
+        end
+      end
 
       File.open(path, 'w+') do |f|
         f.write(<<-EOF.strip_heredoc)
-          class Api::#{opts[:model_name].pluralize.camelize}Controller < ApplicationController
+          class Api::#{json_object[:model].to_s.pluralize.camelize}Controller < ApplicationController
             # Prevent CSRF attacks by raising an exception.
             # For APIs, you may want to use :null_session instead.
             # protect_from_forgery with: :exception
 
-          #{if opts[:routes].include?('i')
+          #{if opts[:controller][:api][:routes].include?(:index)
             <<-eos
 
             def index
-              render json: #{opts[:camel_name]}.all, status: 200
+              render json: #{opts[:model].to_s.camelize}.all, status: 200
             end
             eos
             end
           }
-          #{if opts[:routes].include?('s')
+          #{if opts[:routes].include?(:show)
             <<-eos
 
             def show
@@ -63,7 +50,7 @@ namespace :apiify do |args|
             eos
             end
           }
-          #{if opts[:routes].include?('c')
+          #{if opts[:routes].include?(:create)
             <<-eos
 
             def create
@@ -73,7 +60,7 @@ namespace :apiify do |args|
             eos
             end
           }
-          #{if opts[:routes].include?('u')
+          #{if opts[:routes].include?(:update)
             <<-eos
 
             def update
@@ -84,7 +71,7 @@ namespace :apiify do |args|
             eos
             end
           }
-          #{if opts[:routes].include?('d')
+          #{if opts[:routes].include?(:destroy)
             <<-eos
 
             def destroy
@@ -96,86 +83,88 @@ namespace :apiify do |args|
             end
           }
 
-            def safe_params
-              params.require(:#{opts[:model]}).permit(#{opts[:safe_params]})
+            def #{opts[:model].to_s}_params
+              params.require(:#{opts[:model].to_s}).permit(#{safe_params})
             end
           end
         EOF
-      end
 
-      require 'fileutils'
+        require 'fileutils'
 
-      tempfile=File.open(Rails.root.join('config', 'temp.rb'), 'w')
-      f=File.new(Rails.root.join('config', 'routes.rb'))
+        tempfile=File.open(Rails.root.join('config', 'temp.rb'), 'w')
+        f=File.new(Rails.root.join('config', 'routes.rb'))
 
-      insert_next = false
+        insert_next = false
 
-      f.each do |line|
-        if insert_next
-          insert_next = nil
-          routes_key = {'i' => :index, 's' => :show, 'u' => :update, 'c' => :create, 'd' => :destroy}
+        f.each do |line|
+          if insert_next
+            insert_next = nil
+            routes_key = {'i' => :index, 's' => :show, 'u' => :update, 'c' => :create, 'd' => :destroy}
 
-          tempfile << "\t\tresources :#{opts[:camel_name].underscore.pluralize}, only: #{opts[:routes].map{|r| routes_key[r]}}\n"
+            tempfile << "\t\tresources :#{opts[:camel_name].underscore.pluralize}, only: #{opts[:routes].map{|r| routes_key[r]}}\n"
+          end
+
+          if line=~ /namespace \:api/
+            insert_next = true
+          end
+
+          tempfile<<line
         end
 
-        if line=~ /namespace \:api/
-          insert_next = true
-        end
+        f.close
+        tempfile.close
 
-        tempfile<<line
+        FileUtils.mv(Rails.root.join('config', 'temp.rb'), Rails.root.join('config', 'routes.rb'))
       end
+    end
 
-      f.close
-      tempfile.close
+  end
+  def create_model(json_object)
+    model_filename   = opts[:model] + '.rb'
+    model_path       = Rails.root.join('app', 'models', model_filename)
 
-      FileUtils.mv(Rails.root.join('config', 'temp.rb'), Rails.root.join('config', 'routes.rb'))
-
-
-
-      model_filename   = opts[:model] + '.rb'
-      model_path       = Rails.root.join('app', 'models', model_filename)
-
-      unless File.exist?(model_path)
-        File.open(model_path, 'w+') do |f|
-          f.write(<<-EOF.strip_heredoc)
-            class #{opts[:camel_name]} < ActiveRecord::Base
-              # has_many
-              # belongs_to
-            end
-          EOF
-        end
+    unless File.exist?(model_path)
+      File.open(model_path, 'w+') do |f|
+        f.write(<<-EOF.strip_heredoc)
+          class #{opts[:camel_name]} < ActiveRecord::Base
+            # has_many
+            # belongs_to
+          end
+        EOF
       end
+    end
+  end
 
-      require 'find'
+  def create_migration(json_object)
+    require 'find'
 
-      migration_exist = false
-      Find.find("#{Rails.root.join('db', 'migrate')}/") do |filer|
-        migration_exist = true if filer.include?("#{opts[:model].pluralize}.rb")
-      end
+    migration_exist = false
+    Find.find("#{Rails.root.join('db', 'migrate')}/") do |filer|
+      migration_exist = true if filer.include?("#{opts[:model].pluralize}.rb")
+    end
 
-      unless migration_exist
-        filename     = "%s_%s.rb" % [Time.now.strftime('%Y%m%d%H%M%S'), "create_#{opts[:camel_name].underscore.pluralize}"]
-        mig_path     = Rails.root.join('db', 'migrate', filename)
-        arrayified_params = opts[:params].map.with_index {|param, index| "#{param[:type]}  :#{param[:name]}"}
+    unless migration_exist
+      filename     = "%s_%s.rb" % [Time.now.strftime('%Y%m%d%H%M%S'), "create_#{opts[:camel_name].underscore.pluralize}"]
+      mig_path     = Rails.root.join('db', 'migrate', filename)
+      arrayified_params = opts[:params].map.with_index {|param, index| "#{param[:type]}  :#{param[:name]}"}
 
-        arrayified_params.unshift('')
+      arrayified_params.unshift('')
 
-        File.open(mig_path, 'w+') do |f|
-          f.write(<<-EOF.strip_heredoc)
-            class Create#{opts[:camel_name]} < ActiveRecord::Migration
-              def change
-                create_table :#{opts[:camel_name].underscore.pluralize} do |t|
-                  #{arrayified_params.map do |parameter|
-                    <<-INNEREOF
-                  #{parameter}
-                    INNEREOF
-                    end.join("").strip}
-                  t.timestamps
-                end
+      File.open(mig_path, 'w+') do |f|
+        f.write(<<-EOF.strip_heredoc)
+          class Create#{opts[:camel_name]} < ActiveRecord::Migration
+            def change
+              create_table :#{opts[:camel_name].underscore.pluralize} do |t|
+                #{arrayified_params.map do |parameter|
+                  <<-INNEREOF
+                #{parameter}
+                  INNEREOF
+                  end.join("").strip}
+                t.timestamps
               end
             end
-          EOF
-        end
+          end
+        EOF
       end
     end
   end

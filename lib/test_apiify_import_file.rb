@@ -1,7 +1,7 @@
 {
   models: [
     {
-      model: 'Capture',
+      model: :capture,
       attrs: {
         subject_id: :integer,
         act_id:  :integer,
@@ -37,7 +37,7 @@
       }
     },
     {
-      model: 'Act',
+      model: :act,
       attrs: {
         key:         :string,
         description: :text,
@@ -68,7 +68,7 @@
       }
     },
     {
-      model: 'Subject',
+      model: :subject,
       attrs: {
         email:       :string,
         params:      :hstore
@@ -97,7 +97,7 @@
       }
     },
     {
-      model: 'Site',
+      model: :site,
       attrs: {
         name:       :string,
         auth_key:   :string
@@ -131,7 +131,7 @@
       }
     },
     {
-      model: 'Surveys',
+      model: :surveys,
       attrs: {
         beginning:   :datetime,
         ending:      :datetime,
@@ -173,7 +173,7 @@
       }
     },
     {
-      model: 'Reports',
+      model: :reports,
       attrs: {
         name:        :string,
         user_id:     :integer,
@@ -209,7 +209,7 @@
       }
     },
     {
-      model: 'Filters',
+      model: :filters,
       attrs: {
         report_id:    :integer,
         is_public:    :boolean,
