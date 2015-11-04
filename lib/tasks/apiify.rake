@@ -119,6 +119,241 @@ namespace :apiify do |args|
     end
 
   end
+  
+  
+    def create_standard_controller(json_object)
+    filename   = json_object[:model].to_s.pluralize.underscore + '_controller.rb'
+    path       = Rails.root.join('app', 'controllers', filename)
+
+    unless File.exist?(path)
+
+      safe_params = {}
+
+      if json_object[:controller][:standard][:routes].present? && json_object[:controller][:standard][:strong_params].present?
+        if json_object[:controller][:standard][:strong_params].is_a?(Array)
+          safe_params = json_object[:controller][:standard][:strong_params]
+        elsif json_object[:controller][:standard][:strong_params] === :all
+          if json_object[:attrs].present?
+            safe_params = json_object[:attrs].keys
+          end
+        end
+      end
+
+      all_routes = json_object[:controller][:standard][:total_overlord] || json_object[:controller][:standard][:routes] == :all
+
+      File.open(path, 'w+') do |f|
+        f.write(<<-EOF.strip_heredoc)
+          class Api::#{json_object[:model].to_s.pluralize.camelize}Controller < ApplicationController
+            # Prevent CSRF attacks by raising an exception.
+            # For APIs, you may want to use :null_session instead.
+            # protect_from_forgery with: :exception
+
+          #{if all_routes || json_object[:controller][:standard][:routes].include?(:index)
+            <<-eos
+
+            def index
+              render json: #{json_object[:model].to_s.camelize}.all, status: 200
+            end
+            eos
+            end
+          }
+          #{if all_routes || json_object[:controller][:standard][:total_overlord] || json_object[:controller][:standard][:routes] == :all || json_object[:controller][:standard][:routes].include?(:show)
+            <<-eos
+
+            def show
+              render json: #{json_object[:model].to_s.camelize}.find(params['id']), status: 200
+            end
+            eos
+            end
+          }
+          #{if all_routes || json_object[:controller][:standard][:routes].include?(:create)
+            <<-eos
+
+            def create
+              #{json_object[:model].to_s} = #{json_object[:model].to_s}.create(safe_params)
+              render json: #{json_object[:model].to_s}, status: 201
+            end
+            eos
+            end
+          }
+          #{if all_routes || json_object[:controller][:standard][:routes].include?(:update)
+            <<-eos
+
+            def update
+              #{json_object[:model].to_s} = #{json_object[:model].to_s.camelize}.find(params['id'])
+              #{json_object[:model].to_s}.update_attributes(safe_params)
+              render nothing: true, status: 204
+            end
+            eos
+            end
+          }
+          #{if all_routes || json_object[:controller][:standard][:routes].include?(:destroy)
+            <<-eos
+
+            def destroy
+              #{json_object[:model].to_s} = #{json_object[:model].to_s.camelize}.find(params['id'])
+              #{json_object[:model].to_s}.destroy
+              render nothing: true, status: 204
+            end
+            eos
+            end
+          }
+
+            def #{json_object[:model].to_s}_params
+              params.require(:#{json_object[:model].to_s}).permit(#{safe_params})
+            end
+          end
+        EOF
+
+        require 'fileutils'
+
+        tempfile=File.open(Rails.root.join('config', 'temp.rb'), 'w')
+        f=File.new(Rails.root.join('config', 'routes.rb'))
+
+        insert_next = false
+
+        f.each do |line|
+          if insert_next
+
+            if all_routes
+              tempfile << "\t\tresources :#{opts[:camel_name].underscore.pluralize}"
+            elsif json_object[:controller][:standard][:routes].is_a?(Array)
+              tempfile << "\t\tresources :#{opts[:camel_name].underscore.pluralize}, only: #{json_object[:controller][:standard][:routes]}}\n"
+            end
+          end
+
+          tempfile<<line
+        end
+
+        f.close
+        tempfile.close
+
+        FileUtils.mv(Rails.root.join('config', 'temp.rb'), Rails.root.join('config', 'routes.rb'))
+      end
+    end
+
+  end
+
+  def create_admin_controller(json_object)
+    filename   = json_object[:model].to_s.pluralize.underscore + '_controller.rb'
+    path       = Rails.root.join('app', 'controllers', 'admin', 'vi', filename)
+
+    unless File.exist?(path)
+      Dir.mkdir(Rails.root.join('app', 'controllers', 'admin')) unless File.exists?(Rails.root.join('app', 'controllers', 'admin'))
+
+      safe_params = {}
+
+      if json_object[:controller][:admin][:routes].present? && json_object[:controller][:admin][:strong_params].present?
+        if json_object[:controller][:admin][:strong_params].is_a?(Array)
+          safe_params = json_object[:controller][:admin][:strong_params]
+        elsif json_object[:controller][:admin][:strong_params] === :all
+          if json_object[:attrs].present?
+            safe_params = json_object[:attrs].keys
+          end
+        end
+      end
+
+      all_routes = json_object[:controller][:admin][:total_overlord] || json_object[:controller][:admin][:routes] == :all
+
+      File.open(path, 'w+') do |f|
+        f.write(<<-EOF.strip_heredoc)
+          class Api::#{json_object[:model].to_s.pluralize.camelize}Controller < ApplicationController
+            # Prevent CSRF attacks by raising an exception.
+            # For APIs, you may want to use :null_session instead.
+            # protect_from_forgery with: :exception
+
+          #{if all_routes || json_object[:controller][:admin][:routes].include?(:index)
+            <<-eos
+
+            def index
+              render json: #{json_object[:model].to_s.camelize}.all, status: 200
+            end
+            eos
+            end
+          }
+          #{if all_routes || json_object[:controller][:admin][:total_overlord] || json_object[:controller][:admin][:routes] == :all || json_object[:controller][:admin][:routes].include?(:show)
+            <<-eos
+
+            def show
+              render json: #{json_object[:model].to_s.camelize}.find(params['id']), status: 200
+            end
+            eos
+            end
+          }
+          #{if all_routes || json_object[:controller][:admin][:routes].include?(:create)
+            <<-eos
+
+            def create
+              #{json_object[:model].to_s} = #{json_object[:model].to_s}.create(safe_params)
+              render json: #{json_object[:model].to_s}, status: 201
+            end
+            eos
+            end
+          }
+          #{if all_routes || json_object[:controller][:admin][:routes].include?(:update)
+            <<-eos
+
+            def update
+              #{json_object[:model].to_s} = #{json_object[:model].to_s.camelize}.find(params['id'])
+              #{json_object[:model].to_s}.update_attributes(safe_params)
+              render nothing: true, status: 204
+            end
+            eos
+            end
+          }
+          #{if all_routes || json_object[:controller][:admin][:routes].include?(:destroy)
+            <<-eos
+
+            def destroy
+              #{json_object[:model].to_s} = #{json_object[:model].to_s.camelize}.find(params['id'])
+              #{json_object[:model].to_s}.destroy
+              render nothing: true, status: 204
+            end
+            eos
+            end
+          }
+
+            def #{json_object[:model].to_s}_params
+              params.require(:#{json_object[:model].to_s}).permit(#{safe_params})
+            end
+          end
+        EOF
+
+        require 'fileutils'
+
+        tempfile=File.open(Rails.root.join('config', 'temp.rb'), 'w')
+        f=File.new(Rails.root.join('config', 'routes.rb'))
+
+        insert_next = false
+
+        f.each do |line|
+          if insert_next
+            insert_next = nil
+
+            if all_routes
+              tempfile << "\t\tresources :#{opts[:camel_name].underscore.pluralize}"
+            elsif json_object[:controller][:admin][:routes].is_a?(Array)
+              tempfile << "\t\tresources :#{opts[:camel_name].underscore.pluralize}, only: #{json_object[:controller][:admin][:routes]}}\n"
+            end
+          end
+
+          if line=~ /namespace \:admin/
+            insert_next = true
+          end
+
+          tempfile<<line
+        end
+
+        f.close
+        tempfile.close
+
+        FileUtils.mv(Rails.root.join('config', 'temp.rb'), Rails.root.join('config', 'routes.rb'))
+      end
+    end
+
+  end
+  
+  
   def create_model(json_object)
     model_filename   = opts[:model] + '.rb'
     model_path       = Rails.root.join('app', 'models', model_filename)
