@@ -32,51 +32,51 @@ namespace :apiify do |args|
             # For APIs, you may want to use :null_session instead.
             # protect_from_forgery with: :exception
 
-          #{if opts[:controller][:api][:routes].include?(:index)
+          #{if json_object[:controller][:api][:routes].include?(:index)
             <<-eos
 
             def index
-              render json: #{opts[:model].to_s.camelize}.all, status: 200
+              render json: #{json_object[:model].to_s.camelize}.all, status: 200
             end
             eos
             end
           }
-          #{if opts[:routes].include?(:show)
+          #{if json_object[:controller][:api][:routes].include?(:show)
             <<-eos
 
             def show
-              render json: #{opts[:camel_name]}.find(params['id']), status: 200
+              render json: #{json_object[:model].to_s.camelize}.find(params['id']), status: 200
             end
             eos
             end
           }
-          #{if opts[:routes].include?(:create)
+          #{if json_object[:controller][:api][:routes].include?(:create)
             <<-eos
 
             def create
-              #{opts[:model]} = #{opts[:camel_name]}.create(safe_params)
+              #{opts[:model]} = #{json_object[:model].to_s.camelize}.create(safe_params)
               render json: #{opts[:model]}, status: 201
             end
             eos
             end
           }
-          #{if opts[:routes].include?(:update)
+          #{if json_object[:controller][:api][:routes].include?(:update)
             <<-eos
 
             def update
-              #{opts[:model]} = #{opts[:camel_name]}.find(params['id'])
-              #{opts[:model]}.update_attributes(safe_params)
+              #{json_object[:model].to_s} = #{json_object[:model].to_s.camelize}.find(params['id'])
+              #{json_object[:model].to_s}.update_attributes(safe_params)
               render nothing: true, status: 204
             end
             eos
             end
           }
-          #{if opts[:routes].include?(:destroy)
+          #{if json_object[:controller][:api][:routes].include?(:destroy)
             <<-eos
 
             def destroy
-              #{opts[:model]} = #{opts[:camel_name]}.find(params['id'])
-              #{opts[:model]}.destroy
+              #{json_object[:model].to_s} = #{json_object[:model].to_s.camelize}.find(params['id'])
+              #{json_object[:model].to_s}.destroy
               render nothing: true, status: 204
             end
             eos
