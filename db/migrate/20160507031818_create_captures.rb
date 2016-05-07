@@ -5,7 +5,7 @@ class CreateCaptures < ActiveRecord::Migration
       t.string :event
       t.integer :client_id
       t.hstore :data
-      t.boolean :archived
+      t.boolean :archived, default: false
 
       t.timestamps
     end
