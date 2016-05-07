@@ -1,7 +1,12 @@
-# This file should contain all the record creation needed to seed the database with its default values.
-# The data can then be loaded with the rake db:seed (or created alongside the db with db:setup).
-#
-# Examples:
-#
-#   cities = City.create([{ name: 'Chicago' }, { name: 'Copenhagen' }])
-#   Mayor.create(name: 'Emanuel', city: cities.first)
+Capture.create(event: 'create a product', data: {email: 'giraffe@zoo.com', tennant: 'Das box store', product_name: 'medium box', customized: 'false'})
+Capture.create(event: 'create a product', data: {email: 'zebra@zoo.com', tennant: 'Das box store', product_name: 'small box', customized: 'true'})
+Capture.create(event: 'create a product', data: {email: 'giraffe@zoo.com', tennant: 'Das box store', product_name: 'big box', customized: 'false'})
+Capture.create(event: 'create a product', data: {email: 'otter@zoo.com', tennant: 'Das box store', product_name: 'mini box', customized: 'true'})
+
+Capture.create(event: 'create a user', data: {email: 'otter@zoo.com', tennant: 'Das box store', invitation: 'true', walk_in: 'false'})
+
+Capture.create(event: 'create a user', data: {email: 'otter@zoo.com', tennant: 'Das box store', invitation: 'true', walk_in: 'false'})
+
+Capture.create(event: 'create a user', data: {email: 'otter@zoo.com', tennant: 'Das box store', invitation: 'true', walk_in: 'false'})
+
+Capture.create(event: 'create a user', data: {email: 'zebra@zoo.com', tennant: 'Das box store', invitation: 'false', walk_in: 'true'})
